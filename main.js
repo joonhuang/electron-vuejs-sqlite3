@@ -4,6 +4,14 @@ const path = require('path')
 const url = require("url");
 const fs = require('fs')
 
+const knex = require("knex")({
+    client: 'sqlite3',
+    connection: {
+        filename: app.getPath('userData') + '/database.sqlite3'
+    },
+    useNullAsDefault: true
+})
+
 let mainWindow
 
 function createWindow() {
@@ -43,31 +51,85 @@ function createWindow() {
     // +++++++++++++++++++++
     //        ipcMain
     // +++++++++++++++++++++
-    const knex = require("knex")({
-        client: 'sqlite3',
-        connection: {
-            filename: app.getPath('userData') + '/database.sqlite3'
-        },
-        useNullAsDefault: true
-    })
-    ipcMain.on("getUsers", async () => {
+
+    ipcMain.on("getProducts", async () => {
         var result = []
         let rows = await knex
             .select("*")
-            .from("users")
-            .limit(15)
+            .from("products")
         const promises = rows.map(async (data) => {
             const container = {}
             container["name"] = data.name
-            container["email"] = data.email
+            container["price"] = data.price
 
             result.push(container)
         })
 
         await Promise.all(promises)
 
-        knex.destroy()
-        mainWindow.webContents.send("getUsersResults", result)
+        mainWindow.webContents.send("getProductsResults", result)
+    })
+
+    ipcMain.on("getInvoice", async () => {
+        var result = []
+        let rows = await knex
+            .select("*")
+            .from("invoice")
+        const promises = rows.map(async (data) => {
+            const container = {}
+            container["id"] = data.id
+            container["name"] = data.name
+            container["price"] = data.price
+
+            result.push(container)
+        })
+
+        await Promise.all(promises)
+
+        mainWindow.webContents.send("getInvoiceResults", result)
+    })
+
+    ipcMain.on("getTransactionsByInvoiceName", async (event, data) => {
+        var result = []
+        let rows = await knex
+            .select("*")
+            .from("transaction").where("invoiceName", data)
+        const promises = rows.map(async (data) => {
+            const container = {}
+            container["id"] = data.id
+            container["productName"] = data.productName
+            container["quantity"] = data.quantity
+            container["unitPrice"] = data.unitPrice
+            container["totalPrice"] = data.totalPrice
+
+            result.push(container)
+        })
+
+        await Promise.all(promises)
+
+        mainWindow.webContents.send("getTransactionsByInvoiceNameResults", result)
+    })
+
+    ipcMain.on("createInvoice", async (event, data) => {
+        await knex("invoice")
+            .insert(data)
+            .then(() => {
+                mainWindow.webContents.send("createInvoiceResult", "Invoice has been created")
+            })
+            .catch((err) => {
+                mainWindow.webContents.send("createInvoiceResult", err)
+            })
+    })
+
+    ipcMain.on("createTrans", async (event, data) => {
+        await knex("transaction")
+            .insert(data)
+            .then(() => {
+                mainWindow.webContents.send("createTransResult", "Transaction has been created")
+            })
+            .catch((err) => {
+                mainWindow.webContents.send("createTransResult", err)
+            })
     })
 }
 app.on('ready', function () {
@@ -89,19 +151,19 @@ function createMenu() {
             label: 'Menu',
             submenu: [
                 {
-                    label: 'Home',
+                    label: 'Create Invoice',
                     click() {
-                        console.log("Navigate to Home");
-                        mainWindow.webContents.send('goToHome');
+                        console.log("Navigate to Create Invoice");
+                        mainWindow.webContents.send('goToCreateInvoice');
                     }
 
                 },
                 {
-                    label: 'About',
+                    label: 'View Invoice',
 
                     click() {
-                        console.log("Navigate to About");
-                        mainWindow.webContents.send('goToAbout');
+                        console.log("Navigate to View Invoice ");
+                        mainWindow.webContents.send('goToViewInvoice');
                     }
                 },
                 {

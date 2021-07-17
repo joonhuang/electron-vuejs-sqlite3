@@ -4,7 +4,7 @@
   "private": true,
   "main": "main.js",
   "scripts": {
-    "start": "vue-cli-service build && electron .",
+    "start": "vue-cli-service build && electron . --trace-warning",
     "serve": "vue-cli-service serve",
     "build": "vue-cli-service build",
     "lint": "vue-cli-service lint",
@@ -13,8 +13,11 @@
   },
   "dependencies": {
     "bookshelf": "^1.0.0",
+    "bootstrap": "^5.0.2",
     "core-js": "^3.6.5",
+    "datatables.net-dt": "^1.1.0",
     "electron-is-dev": "^2.0.0",
+    "jquery": "^3.6.0",
     "knex": "^0.21.0",
     "sqlite3": "^5.0.0",
     "vue": "^2.6.11",

@@ -1,9 +1,5 @@
 <template>
   <div id="app">
-    <div id="nav">
-      <router-link to="/">Home</router-link> |
-      <router-link to="/about">About</router-link>
-    </div>
     <router-view />
   </div>
 </template>
@@ -13,11 +9,11 @@ const electron = window.require("electron");
 
 export default {
   mounted: function () {
-    electron.ipcRenderer.on("goToHome", () => {
+    electron.ipcRenderer.on("goToCreateInvoice", () => {
       this.$router.push("/");
     });
-    electron.ipcRenderer.on("goToAbout", () => {
-      this.$router.push("/about");
+    electron.ipcRenderer.on("goToViewInvoice", () => {
+      this.$router.push("/invoices");
     });
   },
 };

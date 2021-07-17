@@ -58,22 +58,31 @@
                     </div>
                     <div class="modal-body">
                       <div class="form-group mb-3">
-                        <label for="txn_name_modal" class="form-label"
-                          >Transaction name:</label
+                        <label for="product_modal" class="form-label"
+                          >Products:</label
                         >
                         <input
-                          id="txn_name_modal"
-                          type="text"
                           class="form-control"
+                          list="datalistOptions"
+                          id="product_modal"
+                          placeholder="Type to search..."
                         />
+                        <datalist id="datalistOptions">
+                          <option
+                            v-bind:key="index"
+                            v-for="(product, index) in products"
+                          >
+                            {{ product.name }}
+                          </option>
+                        </datalist>
                       </div>
                       <div class="form-group mb-3">
-                        <label for="txn_price_modal" class="form-label"
-                          >Price ($):</label
+                        <label for="quantity_modal" class="form-label"
+                          >Quantity:</label
                         >
                         <input
-                          id="txn_price_modal"
-                          type="numeric"
+                          id="quantity_modal"
+                          type="number"
                           class="form-control"
                         />
                       </div>
@@ -103,18 +112,20 @@
               <table class="table">
                 <thead>
                   <tr>
-                    <th scope="col">#</th>
-                    <th scope="col">Transaction Name</th>
-                    <th scope="col">Price ($)</th>
+                    <th scope="col">Product Name</th>
+                    <th scope="col">Quantity</th>
+                    <th scope="col">Unit Price (RM)</th>
+                    <th scope="col">Total Price (RM)</th>
                     <th scope="col"></th>
                   </tr>
                 </thead>
                 <tbody>
                   <template v-for="txn in transactions">
-                    <tr :key="txn.id">
-                      <th>{{ txn.id }}</th>
-                      <td>{{ txn.name }}</td>
-                      <td>{{ txn.price }}</td>
+                    <tr :key="txn.productName">
+                      <td>{{ txn.productName }}</td>
+                      <td>{{ txn.quantity }}</td>
+                      <td>{{ txn.unitPrice }}</td>
+                      <td>{{ txn.totalPrice }}</td>
                       <td>
                         <button
                           type="button"
@@ -131,9 +142,28 @@
             </div>
 
             <div class="form-group">
-              <button class="btn btn-primary">Create Invoice</button>
-              {{ loading }}
-              {{ status }}
+              <button
+                class="btn btn-primary"
+                v-on:click="displayAlert = !displayAlert"
+              >
+                Create Invoice
+              </button>
+              <div
+                class="alert alert-success alert-dismissible fade show"
+                role="alert"
+                v-if="displayAlert"
+              >
+                <strong>Holy guacamole!</strong> Invoice Created Sucessfully
+                <button
+                  type="button"
+                  class="close"
+                  data-dismiss="alert"
+                  aria-label="Close"
+                  v-on:click="displayAlert = !displayAlert"
+                >
+                  <span aria-hidden="true">&times;</span>
+                </button>
+              </div>
             </div>
           </form>
         </div>
@@ -157,31 +187,46 @@ export default {
       nextTxnId: 1,
       loading: "",
       status: "",
+      products: [],
+      selectedProducts: {},
+      displayAlert: false,
     };
   },
+  mounted() {
+    this.getProducts();
+  },
   methods: {
+    getProducts() {
+      ipc.send("getProducts");
+      ipc.once("getProductsResults", async (event, result) => {
+        this.products = result;
+      });
+    },
     saveTransaction() {
       // append data to the arrays
-      let name = document.getElementById("txn_name_modal").value;
-      let price = document.getElementById("txn_price_modal").value;
+      let product = document.getElementById("product_modal").value;
+      let quantity = document.getElementById("quantity_modal").value;
 
-      if (name.length != 0 && price > 0) {
+      if (product.length != 0 && quantity > 0) {
+        let totalPrice;
+        let unitPrice;
+        for (let availableProduct of this.products) {
+          if (availableProduct.name === product) {
+            unitPrice = availableProduct.price;
+            totalPrice = availableProduct.price * quantity;
+          }
+        }
         this.transactions.push({
-          id: this.nextTxnId,
-          name: name,
-          price: price,
+          productName: product,
+          quantity: quantity,
+          unitPrice: unitPrice,
+          totalPrice: totalPrice,
         });
-
-        this.nextTxnId++;
         this.calcTotal();
 
         // clear their values
-        document.getElementById("txn_name_modal").value = "";
-        document.getElementById("txn_price_modal").value = "";
-        ipc.send("getUsers");
-        ipc.once("getUsersResults", async (event, result) => {
-          console.log(result);
-        });
+        document.getElementById("product_modal").value = "";
+        document.getElementById("quantity_modal").value = "";
       }
     },
     deleteTransaction(id) {
@@ -198,23 +243,19 @@ export default {
       let total = 0;
 
       this.transactions.forEach((element) => {
-        total += parseInt(element.price, 10);
+        total += parseInt(element.totalPrice, 10);
       });
       this.invoice.total_price = total;
     },
     onSubmit() {
-      const formData = new FormData();
-
       this.transactions.forEach((element) => {
-        formData.append("txn_names[]", element.name);
-        formData.append("txn_prices[]", element.price);
+        element.invoiceName = this.invoice.name;
       });
-
-      formData.append("name", this.invoice.name);
-      //formData.append("user_id", this.$route.params.user.id);
-      this.loading = "Creating Invoice, please wait ...";
-
-      // Post to server
+      ipc.send("createInvoice", {
+        name: this.invoice.name,
+        price: this.invoice.total_price,
+      });
+      ipc.send("createTrans", this.transactions);
     },
   },
 };
